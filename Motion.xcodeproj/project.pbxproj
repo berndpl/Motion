@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		893BAE9B2E39FBB600B6AADF /* claude.md in Resources */ = {isa = PBXBuildFile; fileRef = 893BAE9A2E39FBB600B6AADF /* claude.md */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		893BAE2B2E39FB3800B6AADF /* Motion.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Motion.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		893BAE9A2E39FBB600B6AADF /* claude.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = claude.md; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -32,6 +37,7 @@
 		893BAE222E39FB3800B6AADF = {
 			isa = PBXGroup;
 			children = (
+				893BAE9A2E39FBB600B6AADF /* claude.md */,
 				893BAE2D2E39FB3800B6AADF /* Motion */,
 				893BAE2C2E39FB3800B6AADF /* Products */,
 			);
@@ -109,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				893BAE9B2E39FBB600B6AADF /* claude.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

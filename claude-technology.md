@@ -1,41 +1,5 @@
 # Motion App
 
-+ See claude-technology.md for technology guidance and stack
-
-Goal
-Motion makes suggestions about your next steps and actions by generation actionable cards with content, purpose, insights and relevant action.
-
-Information
-The cards can be accessed in the app as a list
-There is also a daily notifications extracting one item that stands out
-
-Card
-+ Each cards explains why it is relevant to you right now
-
-How it works
-+ Motion is connected to an LLM. For now it uses the REST interface of OLLAMA to process data
-
-Input
-+ A prompt "Create a short summary of the follwing content <spark content>" 
-+ The combined content of all Spark files
-
-Output
-+ A Text response from the LLM
-
-Interaction
-+ When pressing the "Summarize" button the prompt and content is submited to Ollama via its REST API.
-+ While it is processing the buttin becomes inactive and shows a spinner
-+ The resopnse shows up in a sepaarte Textview
-
-Interface
-+ One text view prepopulated with the prompt and concatenated spark file content
-+ One "Summarize" button
-+ One text view showing the response
-
-Ollama
-
-
-
 Functionality
 
 Motion turns your Sparks you collected using the Spark app into actionable cards

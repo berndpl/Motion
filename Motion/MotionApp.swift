@@ -13,5 +13,10 @@ struct MotionApp: App {
         WindowGroup {
             ContentView()
         }
+#if os(macOS)
+.windowStyle(.hiddenTitleBar)
+.windowResizability(.contentMinSize)
+.defaultSize(width: 300, height: 200)
+#endif
     }
 }

@@ -16,6 +16,9 @@ struct OptionsSheetView: View {
     let currentResponseText: String
     let onDone: () -> Void
     let onTestGenerateAndNotify: () -> Void
+    let promptText: String
+
+    @State private var showFullPrompt: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -40,6 +43,12 @@ struct OptionsSheetView: View {
                     .background(Color(.textBackgroundColor))
                     .cornerRadius(8)
                     .scrollIndicators(.automatic)
+
+                HStack {
+                    Button("Show Full Prompt") { showFullPrompt = true }
+                        .buttonStyle(.borderedProminent)
+                    Spacer()
+                }
             }
             // File count display
             VStack(alignment: .leading, spacing: 8) {
@@ -80,6 +89,39 @@ struct OptionsSheetView: View {
             }
         }
         .padding()
+        .sheet(isPresented: $showFullPrompt) {
+            let fullPrompt = promptText + sparkContent
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Full Prompt")
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Button("Done") { showFullPrompt = false }
+                        .buttonStyle(.borderedProminent)
+                }
+                Text("Estimated tokens: \(estimateTokenCount(for: fullPrompt))")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                ScrollView {
+                    Text(fullPrompt)
+                        .textSelection(.enabled)
+                        .font(.system(.body, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(Color(.textBackgroundColor))
+                        .cornerRadius(6)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding()
+            .frame(minWidth: 500, minHeight: 400)
+        }
+    }
+
+    private func estimateTokenCount(for text: String) -> Int {
+        let characterCount = text.unicodeScalars.count
+        return max(1, Int(ceil(Double(characterCount) / 4.0)))
     }
 }
 
@@ -92,7 +134,8 @@ struct OptionsSheetView: View {
         notificationsEnabled: .constant(true),
         currentResponseText: "Here is a preview response.",
         onDone: {},
-        onTestGenerateAndNotify: {}
+        onTestGenerateAndNotify: {},
+        promptText: "Create a short summary of the following content "
     )
     .frame(width: 420, height: 500)
 }

@@ -16,7 +16,8 @@ enum AppState {
 }
 
 struct ContentView: View {
-    @AppStorage("promptText") private var promptText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
+    @AppStorage("promptText") private var savedPromptText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
+    @State private var promptDraftText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
     @State private var sparkContent = ""
     @State private var responseText = ""
     @State private var errorMessage: String?
@@ -46,6 +47,7 @@ struct ContentView: View {
         // Only seed values when running SwiftUI previews
         if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
             UserDefaults.standard.set(promptText, forKey: "promptText")
+            self._promptDraftText = State(initialValue: promptText)
             self._sparkContent = State(initialValue: sparkContent)
             self._responseText = State(initialValue: responseText)
             self._errorMessage = State(initialValue: errorMessage)
@@ -130,6 +132,8 @@ struct ContentView: View {
         }
         .onAppear {
             loadSparkContent()
+            // Load saved prompt into editable draft
+            promptDraftText = savedPromptText
             if notificationsEnabled {
                 Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
                 startHourlyGenerator()
@@ -147,15 +151,7 @@ struct ContentView: View {
         .onDisappear {
             stopHourlyGenerator()
         }
-        .onChange(of: promptText) { oldValue, newValue in
-            // Debug log each save of the prompt
-            print("💾 Prompt saved (", newValue.count, " chars)")
-            // Brief visual confirmation
-            withAnimation(.easeInOut(duration: 0.15)) { showSavedToast = true }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                withAnimation(.easeInOut(duration: 0.25)) { showSavedToast = false }
-            }
-        }
+        // Intentionally no per-keystroke saving; saving occurs on Generate
         // Options sheet content
         .sheet(isPresented: $showMoreSection) {
             OptionsSheetView(
@@ -166,7 +162,8 @@ struct ContentView: View {
                 notificationsEnabled: $notificationsEnabled,
                 currentResponseText: (errorMessage ?? responseText),
                 onDone: { showMoreSection = false },
-                onTestGenerateAndNotify: { Task { await generateAndNotify() } }
+                    onTestGenerateAndNotify: { Task { await generateAndNotify() } },
+                    promptText: promptDraftText
             )
             .frame(minWidth: 400, minHeight: 500)
         }
@@ -176,9 +173,9 @@ struct ContentView: View {
     private var textBinding: Binding<String> {
         switch appState {
         case .initial:
-            return $promptText
+            return $promptDraftText
         case .processing:
-            return .constant(promptText)
+            return .constant(promptDraftText)
         case .response:
             return .constant(errorMessage ?? responseText)
         }
@@ -200,6 +197,13 @@ struct ContentView: View {
         case .initial:
             // Resign focus from prompt editor when starting generation
             promptFocused = false
+            // Persist prompt only on generate
+            savedPromptText = promptDraftText
+            print("💾 Prompt saved (", savedPromptText.count, " chars)")
+            withAnimation(.easeInOut(duration: 0.15)) { showSavedToast = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.easeInOut(duration: 0.25)) { showSavedToast = false }
+            }
             generateContent()
         case .processing:
             break // Button is disabled during processing
@@ -217,7 +221,7 @@ struct ContentView: View {
         
         Task {
             do {
-                let combinedPrompt = promptText + sparkContent
+                let combinedPrompt = promptDraftText + sparkContent
                 let response = try await callOllamaAPI(prompt: combinedPrompt)
                 await MainActor.run {
                     responseText = response
@@ -257,7 +261,7 @@ struct ContentView: View {
             errorMessage = nil
         }
         do {
-            let combinedPrompt = promptText + sparkContent
+            let combinedPrompt = promptDraftText + sparkContent
             let response = try await callOllamaAPI(prompt: combinedPrompt)
             await MainActor.run {
                 responseText = response

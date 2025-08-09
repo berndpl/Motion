@@ -15,8 +15,7 @@ struct OptionsSheetView: View {
     @Binding var notificationsEnabled: Bool
     let currentResponseText: String
     let onDone: () -> Void
-
-    private let notifications = NotificationsService.shared
+    let onTestGenerateAndNotify: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -75,9 +74,8 @@ struct OptionsSheetView: View {
                 Toggle("Hourly notification with latest response", isOn: $notificationsEnabled)
                 HStack(spacing: 12) {
                     Button("Send Test Notification") {
-                        notifications.sendTest(with: currentResponseText)
+                        onTestGenerateAndNotify()
                     }
-                    .disabled(currentResponseText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
@@ -93,7 +91,8 @@ struct OptionsSheetView: View {
         fileCount: 2,
         notificationsEnabled: .constant(true),
         currentResponseText: "Here is a preview response.",
-        onDone: {}
+        onDone: {},
+        onTestGenerateAndNotify: {}
     )
     .frame(width: 420, height: 500)
 }

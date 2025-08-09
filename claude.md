@@ -102,3 +102,10 @@ Animation
 keep interface clean. With one textview and one button.
 
 Hide the rest under a collabsable more section
+
+### Sending a notification
+
++ When sending a notification
++ Another generate process is triggered using the current prompt and spark data
++ While the notification reponse is prepared this should also be reflected in the interface in the same way when generating a response manually
++ As soon as the response is there show it as local notification

@@ -27,6 +27,9 @@ struct ContentView: View {
     @State private var appState: AppState = .initial
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
     private let notifications = NotificationsService.shared
+    @State private var hourlyTimer: Timer?
+    @FocusState private var promptFocused: Bool
+    @State private var showSavedToast: Bool = false
     
     // MARK: - Preview-only initializer
     #if DEBUG
@@ -68,6 +71,21 @@ struct ContentView: View {
                     .disabled(appState == .processing)
                     .foregroundColor(errorMessage != nil ? .red : .primary)
                     .scrollIndicators(.automatic)
+                    .focused($promptFocused)
+                    .overlay(alignment: .bottomTrailing) {
+                        if showSavedToast {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Saved")
+                            }
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                            .padding(6)
+                            .background(.thinMaterial, in: Capsule())
+                            .padding(6)
+                            .transition(.opacity)
+                        }
+                    }
             }
             //.padding()
             .toolbar {
@@ -114,13 +132,28 @@ struct ContentView: View {
             loadSparkContent()
             if notificationsEnabled {
                 Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
+                startHourlyGenerator()
             }
         }
         .onChange(of: notificationsEnabled) { newValue in
             if newValue {
                 Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
+                startHourlyGenerator()
             } else {
                 notifications.cancelHourly()
+                stopHourlyGenerator()
+            }
+        }
+        .onDisappear {
+            stopHourlyGenerator()
+        }
+        .onChange(of: promptText) { oldValue, newValue in
+            // Debug log each save of the prompt
+            print("💾 Prompt saved (", newValue.count, " chars)")
+            // Brief visual confirmation
+            withAnimation(.easeInOut(duration: 0.15)) { showSavedToast = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.easeInOut(duration: 0.25)) { showSavedToast = false }
             }
         }
         // Options sheet content
@@ -132,7 +165,8 @@ struct ContentView: View {
                 fileCount: fileCount,
                 notificationsEnabled: $notificationsEnabled,
                 currentResponseText: (errorMessage ?? responseText),
-                onDone: { showMoreSection = false }
+                onDone: { showMoreSection = false },
+                onTestGenerateAndNotify: { Task { await generateAndNotify() } }
             )
             .frame(minWidth: 400, minHeight: 500)
         }
@@ -164,6 +198,8 @@ struct ContentView: View {
     private func buttonAction() {
         switch appState {
         case .initial:
+            // Resign focus from prompt editor when starting generation
+            promptFocused = false
             generateContent()
         case .processing:
             break // Button is disabled during processing
@@ -210,6 +246,48 @@ struct ContentView: View {
                 }
             }
         }
+    }
+
+    // Generate specifically for notification flow and send immediate notification
+    private func generateAndNotify() async {
+        guard !sparkContent.isEmpty else { return }
+        await MainActor.run {
+            appState = .processing
+            responseText = ""
+            errorMessage = nil
+        }
+        do {
+            let combinedPrompt = promptText + sparkContent
+            let response = try await callOllamaAPI(prompt: combinedPrompt)
+            await MainActor.run {
+                responseText = response
+                errorMessage = nil
+                appState = .response
+            }
+            // Show as local notification immediately
+            await NotificationsService.shared.ensureAuthorizedAndSchedule(with: response)
+            NotificationsService.shared.sendNow(with: response)
+        } catch {
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+                responseText = ""
+                appState = .response
+            }
+        }
+    }
+    
+    // MARK: - Hourly trigger to re-generate and notify
+    private func startHourlyGenerator() {
+        stopHourlyGenerator()
+        hourlyTimer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { _ in
+            Task { await generateAndNotify() }
+        }
+        RunLoop.main.add(hourlyTimer!, forMode: .common)
+    }
+    
+    private func stopHourlyGenerator() {
+        hourlyTimer?.invalidate()
+        hourlyTimer = nil
     }
     
     private func resetToInitial() {

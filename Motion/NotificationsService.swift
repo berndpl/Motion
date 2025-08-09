@@ -64,4 +64,14 @@ final class NotificationsService {
         let request = UNNotificationRequest(identifier: "motion.test.notification", content: content, trigger: trigger)
         center.add(request, withCompletionHandler: nil)
     }
+
+    func sendNow(with text: String, title: String = "Motion") {
+        let content = UNMutableNotificationContent()
+        content.title = title
+        content.body = text
+        content.sound = .default
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: trigger)
+        center.add(request, withCompletionHandler: nil)
+    }
 }

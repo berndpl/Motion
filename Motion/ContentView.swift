@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Foundation
+import UserNotifications
 
 enum AppState {
     case initial
@@ -15,7 +16,7 @@ enum AppState {
 }
 
 struct ContentView: View {
-    @AppStorage("promptText") private var promptText = "Create a short summary of the following content "
+    @AppStorage("promptText") private var promptText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
     @State private var sparkContent = ""
     @State private var responseText = ""
     @State private var errorMessage: String?
@@ -24,6 +25,8 @@ struct ContentView: View {
     @State private var fileCount = 0
     @State private var showMoreSection = false
     @State private var appState: AppState = .initial
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    private let notifications = NotificationsService.shared
     
     // MARK: - Preview-only initializer
     #if DEBUG
@@ -37,16 +40,18 @@ struct ContentView: View {
         ollamaURL: String = "http://127.0.0.1:11434",
         modelName: String = "llama3"
     ) {
-        // Seed AppStorage for previews
-        UserDefaults.standard.set(promptText, forKey: "promptText")
-        self._sparkContent = State(initialValue: sparkContent)
-        self._responseText = State(initialValue: responseText)
-        self._errorMessage = State(initialValue: errorMessage)
-        self._ollamaURL = State(initialValue: ollamaURL)
-        self._modelName = State(initialValue: modelName)
-        self._fileCount = State(initialValue: fileCount)
-        self._showMoreSection = State(initialValue: false)
-        self._appState = State(initialValue: previewAppState)
+        // Only seed values when running SwiftUI previews
+        if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
+            UserDefaults.standard.set(promptText, forKey: "promptText")
+            self._sparkContent = State(initialValue: sparkContent)
+            self._responseText = State(initialValue: responseText)
+            self._errorMessage = State(initialValue: errorMessage)
+            self._ollamaURL = State(initialValue: ollamaURL)
+            self._modelName = State(initialValue: modelName)
+            self._fileCount = State(initialValue: fileCount)
+            self._showMoreSection = State(initialValue: false)
+            self._appState = State(initialValue: previewAppState)
+        }
     }
     #endif
     
@@ -107,67 +112,28 @@ struct ContentView: View {
         }
         .onAppear {
             loadSparkContent()
+            if notificationsEnabled {
+                Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
+            }
+        }
+        .onChange(of: notificationsEnabled) { newValue in
+            if newValue {
+                Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
+            } else {
+                notifications.cancelHourly()
+            }
         }
         // Options sheet content
         .sheet(isPresented: $showMoreSection) {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                HStack {
-                    Text("Options")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button("Done") {
-                        showMoreSection = false
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                
-                // File count display
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Spark Files")
-                        .font(.headline)
-                    
-                    HStack {
-                        Image(systemName: "doc.on.doc")
-                            .foregroundColor(.blue)
-                        Text("\(fileCount) files loaded")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                }
-                
-                // Content field
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("All Sparks as Text")
-                        .font(.headline)
-                    
-                    TextEditor(text: $sparkContent)
-                        .frame(minHeight: 150)
-                        .padding(8)
-                        .background(Color(.textBackgroundColor))
-                        .cornerRadius(8)
-                    .scrollIndicators(.automatic)
-                }
-                
-                // Ollama server info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ollama Server Info")
-                        .font(.headline)
-                    
-                    TextField("Ollama URL", text: $ollamaURL)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disableAutocorrection(true)
-                    
-                    TextField("Model Name", text: $modelName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disableAutocorrection(true)
-                }
-                
-                Spacer()
-            }
-            .padding()
+            OptionsSheetView(
+                sparkContent: $sparkContent,
+                ollamaURL: $ollamaURL,
+                modelName: $modelName,
+                fileCount: fileCount,
+                notificationsEnabled: $notificationsEnabled,
+                currentResponseText: (errorMessage ?? responseText),
+                onDone: { showMoreSection = false }
+            )
             .frame(minWidth: 400, minHeight: 500)
         }
     }
@@ -221,6 +187,9 @@ struct ContentView: View {
                     responseText = response
                     errorMessage = nil
                     appState = .response
+                }
+                if notificationsEnabled {
+                    notifications.scheduleHourly(with: response)
                 }
             } catch {
                 await MainActor.run {
@@ -350,6 +319,8 @@ struct ContentView: View {
         
         return responseText
     }
+
+    // Notifications helpers moved to NotificationsService
 }
 
 #Preview("Initial State") {

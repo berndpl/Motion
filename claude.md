@@ -26,6 +26,12 @@ Interaction
 + When pressing the "Summarize" button the prompt and content is submited to Ollama via its REST API.
 + While it is processing the buttin becomes inactive and shows a spinner
 
+## Notification
+
++ Add a notifications toggle to the options sheet
++ When enabled create a scheduled notification and run every hour showing the reponse as notifications text
++ Also add a test button to trigger the notififications manually for testing
+
 
 Ollama
 

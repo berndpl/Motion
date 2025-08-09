@@ -56,103 +56,17 @@ struct ContentView: View {
                 // Single text view that shows prompt or response based on state
                 TextEditor(text: textBinding)
                     .frame(minHeight: 200)
-                    .padding(8)
+                    .padding(16)
                     .background(Color(.textBackgroundColor))
-                    .cornerRadius(8)
+                    //.background(.background)
+                    //.cornerRadius(8)
                     .disabled(appState == .processing)
                     .foregroundColor(errorMessage != nil ? .red : .primary)
-                    .scrollIndicators(.hidden)
-                
-                // Button and spinner container
-                HStack {
-                    Button(action: buttonAction) {
-                        if appState == .response {
-                            Image(systemName: "arrow.counterclockwise")
-                        } else {
-                            Text(buttonText)
-                        }
-                    }
-                    .disabled(appState == .processing || (appState == .initial && sparkContent.isEmpty))
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    
-                    // Small spinner next to button during processing
-                    if appState == .processing {
-                        ProgressView()
-                            .scaleEffect(0.6)
-                            .frame(width: 20, height: 20)
-                    }
-                    
-                    Spacer()
-                }
-                
-                // Options sheet content
-                .sheet(isPresented: $showMoreSection) {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Header
-                        HStack {
-                            Text("Options")
-                                .font(.title2)
-                                .fontWeight(.semibold)
-                            Spacer()
-                            Button("Done") {
-                                showMoreSection = false
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        
-                        // File count display
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Spark Files")
-                                .font(.headline)
-                            
-                            HStack {
-                                Image(systemName: "doc.on.doc")
-                                    .foregroundColor(.blue)
-                                Text("\(fileCount) files loaded")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                Spacer()
-                            }
-                        }
-                        
-                        // Content field
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("All Sparks as Text")
-                                .font(.headline)
-                            
-                            TextEditor(text: $sparkContent)
-                                .frame(minHeight: 150)
-                                .padding(8)
-                                .background(Color(.textBackgroundColor))
-                                .cornerRadius(8)
-                                .scrollIndicators(.hidden)
-                        }
-                        
-                        // Ollama server info
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Ollama Server Info")
-                                .font(.headline)
-                            
-                            TextField("Ollama URL", text: $ollamaURL)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .disableAutocorrection(true)
-                            
-                            TextField("Model Name", text: $modelName)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .disableAutocorrection(true)
-                        }
-                        
-                        Spacer()
-                    }
-                    .padding()
-                    .frame(minWidth: 400, minHeight: 500)
-                }
+                    .scrollIndicators(.automatic)
             }
-            .padding()
-            .navigationTitle("\(fileCount) Sparks loaded")
+            //.padding()
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
+                ToolbarItem(placement: .navigation) {
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.2)) {
                             showMoreSection.toggle()
@@ -161,10 +75,100 @@ struct ContentView: View {
                         Image(systemName: "gearshape")
                     }
                 }
+                //                #if os(macOS)
+                                ToolbarItem(placement: .automatic) {
+                                    Spacer()
+                                }
+                //                #endif
+                if appState == .processing {
+                    ToolbarItem(placement: .automatic) {
+                        ProgressView()
+                            .tint(.accentColor)
+                            .scaleEffect(0.4)
+                        //.frame(width: 20, height: 20)
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: buttonAction) {
+                        if appState == .response {
+                            Image(systemName: "arrow.counterclockwise")
+                        } else {
+                            Text(buttonText)
+                        }
+                    }
+                    .tint(.accentColor)
+                    .disabled(appState == .processing || (appState == .initial && sparkContent.isEmpty))
+                }
             }
+#if os(macOS)
+.toolbarBackground(.background, for: .windowToolbar)
+.toolbarBackgroundVisibility(.visible, for: .windowToolbar)
+#endif
         }
         .onAppear {
             loadSparkContent()
+        }
+        // Options sheet content
+        .sheet(isPresented: $showMoreSection) {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                HStack {
+                    Text("Options")
+                        .font(.title2)
+                        .fontWeight(.semibold)
+                    Spacer()
+                    Button("Done") {
+                        showMoreSection = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
+                
+                // File count display
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Spark Files")
+                        .font(.headline)
+                    
+                    HStack {
+                        Image(systemName: "doc.on.doc")
+                            .foregroundColor(.blue)
+                        Text("\(fileCount) files loaded")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                }
+                
+                // Content field
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("All Sparks as Text")
+                        .font(.headline)
+                    
+                    TextEditor(text: $sparkContent)
+                        .frame(minHeight: 150)
+                        .padding(8)
+                        .background(Color(.textBackgroundColor))
+                        .cornerRadius(8)
+                    .scrollIndicators(.automatic)
+                }
+                
+                // Ollama server info
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ollama Server Info")
+                        .font(.headline)
+                    
+                    TextField("Ollama URL", text: $ollamaURL)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .disableAutocorrection(true)
+                    
+                    TextField("Model Name", text: $modelName)
+                        .textFieldStyle(RoundedBorderTextFieldStyle())
+                        .disableAutocorrection(true)
+                }
+                
+                Spacer()
+            }
+            .padding()
+            .frame(minWidth: 400, minHeight: 500)
         }
     }
     

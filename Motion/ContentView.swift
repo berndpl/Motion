@@ -8,109 +8,217 @@
 import SwiftUI
 import Foundation
 
+enum AppState {
+    case initial
+    case processing
+    case response
+}
+
 struct ContentView: View {
-    @State private var promptText = "Create a short summary of the following content "
+    @AppStorage("promptText") private var promptText = "Create a short summary of the following content "
     @State private var sparkContent = ""
     @State private var responseText = ""
-    @State private var isProcessing = false
     @State private var errorMessage: String?
     @State private var ollamaURL = "http://127.0.0.1:11434"
     @State private var modelName = "llama3"
     @State private var fileCount = 0
+    @State private var showMoreSection = false
+    @State private var appState: AppState = .initial
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                // File count display
+                // Single text view that shows prompt or response based on state
+                TextEditor(text: textBinding)
+                    .frame(minHeight: 200)
+                    .padding(8)
+                    .background(Color(.textBackgroundColor))
+                    .cornerRadius(8)
+                    .disabled(appState == .processing)
+                    .foregroundColor(errorMessage != nil ? .red : .primary)
+                    .scrollIndicators(.hidden)
+                
+                // Button and spinner container
                 HStack {
-                    Image(systemName: "doc.on.doc")
-                        .foregroundColor(.blue)
-                    Text("\(fileCount) Spark files loaded")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                    Button(action: buttonAction) {
+                        if appState == .response {
+                            Image(systemName: "arrow.counterclockwise")
+                        } else {
+                            Text(buttonText)
+                        }
+                    }
+                    .disabled(appState == .processing || (appState == .initial && sparkContent.isEmpty))
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    
+                    // Small spinner next to button during processing
+                    if appState == .processing {
+                        ProgressView()
+                            .scaleEffect(0.6)
+                            .frame(width: 20, height: 20)
+                    }
+                    
                     Spacer()
                 }
                 
-                // Prompt and Content text fields
-                VStack(alignment: .leading, spacing: 16) {
-                    // Prompt field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Prompt")
-                            .font(.headline)
-                        
-                        TextEditor(text: $promptText)
-                            .frame(minHeight: 80)
-                            .padding(8)
-                            .background(Color(.gray))
-                            .cornerRadius(8)
-                    }
-                    
-                    // Content field
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Content")
-                            .font(.headline)
-                        
-                        TextEditor(text: $sparkContent)
-                            .frame(minHeight: 150)
-                            .padding(8)
-                            .background(Color(.gray))
-                            .cornerRadius(8)
-                    }
-                }
-                
-                // Summarize button
-                Button(action: summarizeContent) {
-                    HStack {
-                        if isProcessing {
-                            ProgressView()
-                                .scaleEffect(0.8)
+                // Options sheet content
+                .sheet(isPresented: $showMoreSection) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        // Header
+                        HStack {
+                            Text("Options")
+                                .font(.title2)
+                                .fontWeight(.semibold)
+                            Spacer()
+                            Button("Done") {
+                                showMoreSection = false
+                            }
+                            .buttonStyle(.borderedProminent)
                         }
-                        Text(isProcessing ? "Processing..." : "Summarize")
+                        
+                        // File count display
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Spark Files")
+                                .font(.headline)
+                            
+                            HStack {
+                                Image(systemName: "doc.on.doc")
+                                    .foregroundColor(.blue)
+                                Text("\(fileCount) files loaded")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                Spacer()
+                            }
+                        }
+                        
+                        // Content field
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("All Sparks as Text")
+                                .font(.headline)
+                            
+                            TextEditor(text: $sparkContent)
+                                .frame(minHeight: 150)
+                                .padding(8)
+                                .background(Color(.textBackgroundColor))
+                                .cornerRadius(8)
+                                .scrollIndicators(.hidden)
+                        }
+                        
+                        // Ollama server info
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Ollama Server Info")
+                                .font(.headline)
+                            
+                            TextField("Ollama URL", text: $ollamaURL)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .disableAutocorrection(true)
+                            
+                            TextField("Model Name", text: $modelName)
+                                .textFieldStyle(RoundedBorderTextFieldStyle())
+                                .disableAutocorrection(true)
+                        }
+                        
+                        Spacer()
                     }
-                    .frame(maxWidth: .infinity)
                     .padding()
-                    .background(isProcessing ? Color.gray : Color.blue)
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
+                    .frame(minWidth: 400, minHeight: 500)
                 }
-                .disabled(isProcessing || sparkContent.isEmpty)
-                
-                // Response text view
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Response")
-                        .font(.headline)
-                    
-                    TextEditor(text: .constant(errorMessage ?? responseText))
-                        .frame(minHeight: 150)
-                        .padding(8)
-                        .background(Color(.gray))
-                        .cornerRadius(8)
-                        .foregroundColor(errorMessage != nil ? .red : .primary)
-                }
-                
-                // Ollama URL configuration
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Ollama Server")
-                        .font(.headline)
-                    
-                    TextField("Ollama URL", text: $ollamaURL)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disableAutocorrection(true)
-                    
-                    TextField("Model Name",
-                              text: $modelName)
-                        .textFieldStyle(RoundedBorderTextFieldStyle())
-                        .disableAutocorrection(true)
-                }
-                
-                Spacer()
             }
             .padding()
-            .navigationTitle("Motion")
+            .navigationTitle("\(fileCount) Sparks loaded")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            showMoreSection.toggle()
+                        }
+                    }) {
+                        Image(systemName: "gearshape")
+                    }
+                }
+            }
         }
         .onAppear {
             loadSparkContent()
         }
+    }
+    
+    // Computed properties for state-based UI
+    private var textBinding: Binding<String> {
+        switch appState {
+        case .initial:
+            return $promptText
+        case .processing:
+            return .constant(promptText)
+        case .response:
+            return .constant(errorMessage ?? responseText)
+        }
+    }
+    
+    private var buttonText: String {
+        switch appState {
+        case .initial:
+            return "Generate"
+        case .processing:
+            return "Processing..."
+        case .response:
+            return "Reset"
+        }
+    }
+    
+    private func buttonAction() {
+        switch appState {
+        case .initial:
+            generateContent()
+        case .processing:
+            break // Button is disabled during processing
+        case .response:
+            resetToInitial()
+        }
+    }
+    
+    private func generateContent() {
+        guard !sparkContent.isEmpty else { return }
+        
+        appState = .processing
+        responseText = ""
+        errorMessage = nil
+        
+        Task {
+            do {
+                let combinedPrompt = promptText + sparkContent
+                let response = try await callOllamaAPI(prompt: combinedPrompt)
+                await MainActor.run {
+                    responseText = response
+                    errorMessage = nil
+                    appState = .response
+                }
+            } catch {
+                await MainActor.run {
+                    if let urlError = error as? URLError {
+                        switch urlError.code {
+                        case .cannotFindHost:
+                            errorMessage = "❌ Cannot connect to Ollama server.\n\nMake sure:\n1. Ollama is running (run 'ollama serve')\n2. The URL is correct\n3. If using simulator, try your Mac's IP instead of localhost"
+                        case .cannotConnectToHost:
+                            errorMessage = "❌ Connection refused.\n\nOllama might not be running. Try:\n• ollama serve\n• Check the port (default: 11434)"
+                        default:
+                            errorMessage = "❌ Network error: \(urlError.localizedDescription)"
+                        }
+                    } else {
+                        errorMessage = "❌ Error: \(error.localizedDescription)"
+                    }
+                    responseText = ""
+                    appState = .response
+                }
+            }
+        }
+    }
+    
+    private func resetToInitial() {
+        appState = .initial
+        responseText = ""
+        errorMessage = nil
+        // promptText is persisted via @AppStorage and remains unchanged
     }
     
     private func loadSparkContent() {
@@ -164,42 +272,6 @@ struct ContentView: View {
         }
     }
     
-    private func summarizeContent() {
-        guard !sparkContent.isEmpty else { return }
-        
-        isProcessing = true
-        responseText = ""
-        errorMessage = nil
-        
-        Task {
-            do {
-                let combinedPrompt = promptText + sparkContent
-                let response = try await callOllamaAPI(prompt: combinedPrompt)
-                await MainActor.run {
-                    responseText = response
-                    errorMessage = nil
-                    isProcessing = false
-                }
-            } catch {
-                await MainActor.run {
-                    if let urlError = error as? URLError {
-                        switch urlError.code {
-                        case .cannotFindHost:
-                            errorMessage = "❌ Cannot connect to Ollama server.\n\nMake sure:\n1. Ollama is running (run 'ollama serve')\n2. The URL is correct\n3. If using simulator, try your Mac's IP instead of localhost"
-                        case .cannotConnectToHost:
-                            errorMessage = "❌ Connection refused.\n\nOllama might not be running. Try:\n• ollama serve\n• Check the port (default: 11434)"
-                        default:
-                            errorMessage = "❌ Network error: \(urlError.localizedDescription)"
-                        }
-                    } else {
-                        errorMessage = "❌ Error: \(error.localizedDescription)"
-                    }
-                    responseText = ""
-                    isProcessing = false
-                }
-            }
-        }
-    }
     
     private func callOllamaAPI(prompt: String) async throws -> String {
         guard let url = URL(string: "\(ollamaURL)/api/generate") else {
@@ -251,6 +323,34 @@ struct ContentView: View {
     }
 }
 
-#Preview {
+struct PreviewContentView: View {
+    let appState: AppState
+    let sparkContent: String
+    let fileCount: Int
+    let responseText: String?
+    let errorMessage: String?
+    
+    var body: some View {
+        ContentView()
+            .onAppear {
+                // Note: This is just for preview demonstration
+                // In real app, these would be properly managed by @State
+            }
+    }
+}
+
+#Preview("Initial State") {
+    ContentView()
+}
+
+#Preview("Processing State") {
+    ContentView()
+}
+
+#Preview("Response State - Success") {
+    ContentView()
+}
+
+#Preview("Response State - Error") {
     ContentView()
 }

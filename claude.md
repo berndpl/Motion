@@ -25,15 +25,9 @@ Output
 Interaction
 + When pressing the "Summarize" button the prompt and content is submited to Ollama via its REST API.
 + While it is processing the buttin becomes inactive and shows a spinner
-+ The resopnse shows up in a sepaarte Textview
 
-Interface
-+ One text view prepopulated with the prompt and concatenated spark file content
-+ One "Summarize" button
-+ One text view showing the response
 
 Ollama
-
 
 
 Functionality
@@ -72,3 +66,38 @@ Build
 
 Animation
 - Use implicit SwiftUI and SwiftData animation wherever possible. Don't add animation block unless implicit animation is not covering it
+
+
+## Interface
+
+### Main interface
+1. Prompt textfield
+2. Generate Button, native macOS button
+
+More section hiding secondary controls
+- Text showing sparks loaded
+- Text field with all sparks as text
+- Ollama server info
+
+##States
+
+### Initial
+
++ Show textfield with prompt
++ Show "generate" button (secondary style)
+
+### Processing
+
++ After tapping generate
++ turn button inactive
++ turn prompt textfield inactive
++ show spinner next to button
+
+### Response
+
++ Replace the textfield content with prompt with the reponse
++ turn button into "Reset" button to return to initial state (secondary style) 
+
+keep interface clean. With one textview and one button.
+
+Hide the rest under a collabsable more section

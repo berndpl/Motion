@@ -74,11 +74,6 @@ Animation
 1. Prompt textfield
 2. Generate Button, native macOS button
 
-More section hiding secondary controls
-- Text showing sparks loaded
-- Text field with all sparks as text
-- Ollama server info
-
 ##States
 
 ### Initial

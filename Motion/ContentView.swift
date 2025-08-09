@@ -25,6 +25,31 @@ struct ContentView: View {
     @State private var showMoreSection = false
     @State private var appState: AppState = .initial
     
+    // MARK: - Preview-only initializer
+    #if DEBUG
+    init(
+        previewAppState: AppState = .initial,
+        promptText: String = "Create a short summary of the following content ",
+        sparkContent: String = "",
+        responseText: String = "",
+        errorMessage: String? = nil,
+        fileCount: Int = 0,
+        ollamaURL: String = "http://127.0.0.1:11434",
+        modelName: String = "llama3"
+    ) {
+        // Seed AppStorage for previews
+        UserDefaults.standard.set(promptText, forKey: "promptText")
+        self._sparkContent = State(initialValue: sparkContent)
+        self._responseText = State(initialValue: responseText)
+        self._errorMessage = State(initialValue: errorMessage)
+        self._ollamaURL = State(initialValue: ollamaURL)
+        self._modelName = State(initialValue: modelName)
+        self._fileCount = State(initialValue: fileCount)
+        self._showMoreSection = State(initialValue: false)
+        self._appState = State(initialValue: previewAppState)
+    }
+    #endif
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
@@ -323,34 +348,45 @@ struct ContentView: View {
     }
 }
 
-struct PreviewContentView: View {
-    let appState: AppState
-    let sparkContent: String
-    let fileCount: Int
-    let responseText: String?
-    let errorMessage: String?
-    
-    var body: some View {
-        ContentView()
-            .onAppear {
-                // Note: This is just for preview demonstration
-                // In real app, these would be properly managed by @State
-            }
-    }
-}
-
 #Preview("Initial State") {
-    ContentView()
+    let sampleSparks = "- Opened article about deep work\n- Saved location: Brighton Beach\n- Screenshot: meeting agenda notes\n"
+    return ContentView(
+        previewAppState: .initial,
+        promptText: "Create a short summary of the following content ",
+        sparkContent: sampleSparks,
+        responseText: "",
+        errorMessage: nil,
+        fileCount: 3
+    )
+    .frame(width: 420, height: 360)
 }
 
 #Preview("Processing State") {
-    ContentView()
+    let sampleSparks = String(repeating: "• Spark line example\n", count: 8)
+    return ContentView(
+        previewAppState: .processing,
+        sparkContent: sampleSparks,
+        fileCount: 8
+    )
+    .frame(width: 420, height: 360)
 }
 
 #Preview("Response State - Success") {
-    ContentView()
+    let sampleResponse = "Here are the next steps based on your sparks:\n\n1. Block a 2-hour deep work session tomorrow morning.\n2. Add a reminder to visit Brighton Beach this weekend.\n3. Turn the meeting agenda notes into action items in Reminders."
+    return ContentView(
+        previewAppState: .response,
+        responseText: sampleResponse,
+        fileCount: 3
+    )
+    .frame(width: 420, height: 360)
 }
 
 #Preview("Response State - Error") {
-    ContentView()
+    return ContentView(
+        previewAppState: .response,
+        responseText: "",
+        errorMessage: "❌ Connection refused.\n\nOllama might not be running. Try:\n• ollama serve\n• Check the port (default: 11434)",
+        fileCount: 3
+    )
+    .frame(width: 420, height: 360)
 }

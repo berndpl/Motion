@@ -16,6 +16,7 @@ enum AppState {
 }
 
 struct ContentView: View {
+    @StateObject private var sparkLoader = SparkLoader(containerIdentifier: "iCloud.de.plontsch.journey.shared")
     @AppStorage("promptText") private var savedPromptText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
     @State private var promptDraftText = "Highlight one insight from my recent sparks Keep it short and concise. 140 characcters. "
     @State private var sparkContent = ""
@@ -131,13 +132,19 @@ struct ContentView: View {
 #endif
         }
         .onAppear {
-            loadSparkContent()
+            sparkLoader.start()
             // Load saved prompt into editable draft
             promptDraftText = savedPromptText
             if notificationsEnabled {
                 Task { await notifications.ensureAuthorizedAndSchedule(with: (errorMessage ?? responseText)) }
                 startHourlyGenerator()
             }
+        }
+        .onReceive(sparkLoader.$combinedContent) { newCombined in
+            sparkContent = newCombined
+        }
+        .onReceive(sparkLoader.$fileCount) { newCount in
+            fileCount = newCount
         }
         .onChange(of: notificationsEnabled) { newValue in
             if newValue {
@@ -149,6 +156,7 @@ struct ContentView: View {
             }
         }
         .onDisappear {
+            sparkLoader.stop()
             stopHourlyGenerator()
         }
         // Intentionally no per-keystroke saving; saving occurs on Generate
@@ -301,56 +309,7 @@ struct ContentView: View {
         // promptText is persisted via @AppStorage and remains unchanged
     }
     
-    private func loadSparkContent() {
-        guard let containerURL = FileManager.default.url(forUbiquityContainerIdentifier: "iCloud.de.plontsch.journey.shared") else {
-            errorMessage = "iCloud container not available"
-            return
-        }
-        
-        var allFiles: [URL] = []
-        searchDirectory(url: containerURL, files: &allFiles, level: 0)
-        
-        var combinedContent = ""
-        var loadedFiles = 0
-        for file in allFiles {
-            if let content = try? String(contentsOf: file, encoding: .utf8) {
-                combinedContent += content + "\n\n"
-                loadedFiles += 1
-            }
-        }
-        
-        sparkContent = combinedContent
-        fileCount = loadedFiles
-    }
-    
-    private func searchDirectory(url: URL, files: inout [URL], level: Int) {
-        do {
-            var isDirectory: ObjCBool = false
-            if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) {
-                if isDirectory.boolValue {
-                    let contents = try FileManager.default.contentsOfDirectory(
-                        at: url,
-                        includingPropertiesForKeys: [.isRegularFileKey, .isDirectoryKey],
-                        options: []
-                    )
-                    
-                    for item in contents {
-                        let resourceValues = try? item.resourceValues(forKeys: [.isRegularFileKey, .isDirectoryKey])
-                        let isFile = resourceValues?.isRegularFile == true
-                        let isDir = resourceValues?.isDirectory == true
-                        
-                        if isFile {
-                            files.append(item)
-                        } else if isDir && level < 10 {
-                            searchDirectory(url: item, files: &files, level: level + 1)
-                        }
-                    }
-                }
-            }
-        } catch {
-            // Silently ignore errors
-        }
-    }
+    // Manual directory scanning removed; SparkLoader observes changes and sorts by creation date
     
     
     private func callOllamaAPI(prompt: String) async throws -> String {

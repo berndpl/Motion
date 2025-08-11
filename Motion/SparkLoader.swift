@@ -230,4 +230,22 @@ extension SparkLoader {
         }
         return (title, category, date)
     }
+
+    nonisolated static func extractBody(from content: String) -> String {
+        var lines = content.components(separatedBy: .newlines)
+        // Remove YAML frontmatter if present
+        if let first = lines.first, first.trimmingCharacters(in: .whitespaces) == "---" {
+            // find matching end marker
+            var endIndex: Int? = nil
+            for (idx, line) in lines.enumerated().dropFirst() {
+                if line.trimmingCharacters(in: .whitespaces) == "---" { endIndex = idx; break }
+            }
+            if let end = endIndex, end + 1 < lines.count {
+                lines = Array(lines.suffix(from: end + 1))
+            }
+        }
+        // Trim leading blank lines
+        while lines.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true { _ = lines.removeFirst() }
+        return lines.joined(separator: "\n")
+    }
 }

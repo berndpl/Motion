@@ -8,19 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		893BAE9B2E39FBB600B6AADF /* claude.md in Resources */ = {isa = PBXBuildFile; fileRef = 893BAE9A2E39FBB600B6AADF /* claude.md */; };
-		8954EA432E4A38FC009772F9 /* SparkKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8954EA422E4A38FC009772F9 /* SparkKit.framework */; };
-		8954EA442E4A38FC009772F9 /* SparkKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8954EA422E4A38FC009772F9 /* SparkKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		89A45BED2E3A020200682869 /* claude-technology.md in Resources */ = {isa = PBXBuildFile; fileRef = 89A45BEC2E3A020200682869 /* claude-technology.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-        8954EA452E4A38FC009772F9 /* Embed Frameworks */ = {
+		8954EA452E4A38FC009772F9 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-                /* SparkKit.framework removed from Embed Frameworks */
 			);
 			name = "Embed Frameworks";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -43,11 +40,10 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-        893BAE282E39FB3800B6AADF /* Frameworks */ = {
+		893BAE282E39FB3800B6AADF /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-                /* SparkKit.framework in Frameworks removed */
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

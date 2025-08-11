@@ -30,6 +30,7 @@ struct ContentView: View {
     @State private var showMoreSection = false
     @State private var appState: AppState = .initial
     @AppStorage("notificationsEnabled") private var notificationsEnabled = false
+    @AppStorage("formatAsJSON") private var formatAsJSON = false
     private let notifications = NotificationsService.shared
     @State private var hourlyTimer: Timer?
     @FocusState private var promptFocused: Bool
@@ -65,40 +66,10 @@ struct ContentView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                // Spark list with toggles
-                if !sparkItems.isEmpty {
-                    List(sparkItems) { item in
-                        HStack(alignment: .top, spacing: 8) {
-                            Toggle("", isOn: Binding(
-                                get: { selectedSparkURLs.contains(item.id) },
-                                set: { isOn in
-                                    if isOn { selectedSparkURLs.insert(item.id) } else { selectedSparkURLs.remove(item.id) }
-                                    recomputeSparkContentFromSelection()
-                                }
-                            ))
-                            .toggleStyle(.checkbox)
-                            .labelsHidden()
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.title.isEmpty ? item.id.lastPathComponent : item.title)
-                                    .font(.headline)
-                                HStack(spacing: 8) {
-                                    Text(item.category)
-                                    Text(item.createdDate, style: .date)
-                                    Text("~\(item.tokenEstimate) tok")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .frame(minHeight: 160, maxHeight: 240)
-                }
-
+            VStack(spacing: 20) {
                 // Text editor shows prompt or response based on state
                 TextEditor(text: textBinding)
-                    .frame(minHeight: 180)
+                    .frame(minHeight: 200)
                     .padding(16)
                     .background(Color(.textBackgroundColor))
                     .disabled(appState == .processing)
@@ -181,6 +152,12 @@ struct ContentView: View {
             }
             recomputeSparkContentFromSelection()
         }
+        .onChange(of: selectedSparkURLs) { _ in
+            recomputeSparkContentFromSelection()
+        }
+        .onChange(of: formatAsJSON) { _ in
+            recomputeSparkContentFromSelection()
+        }
         .onReceive(sparkLoader.$fileCount) { newCount in
             fileCount = newCount
         }
@@ -209,7 +186,10 @@ struct ContentView: View {
                 currentResponseText: (errorMessage ?? responseText),
                 onDone: { showMoreSection = false },
                     onTestGenerateAndNotify: { Task { await generateAndNotify() } },
-                    promptText: promptDraftText
+                    promptText: promptDraftText,
+                    sparkItems: sparkItems,
+                    selectedSparkURLs: $selectedSparkURLs,
+                    formatAsJSON: $formatAsJSON
             )
             .frame(minWidth: 400, minHeight: 500)
         }
@@ -350,8 +330,27 @@ struct ContentView: View {
     private func recomputeSparkContentFromSelection() {
         // Build combined content from selected items, keeping newest-first (items already sorted)
         let selected = sparkItems.filter { selectedSparkURLs.contains($0.id) }
-        let combined = selected.map { $0.content }.joined(separator: "\n\n")
-        sparkContent = combined
+        if formatAsJSON {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .withoutEscapingSlashes]
+            let payload: [[String: AnyEncodable]] = selected.map { item in
+                let body = SparkLoader.extractBody(from: item.content)
+                return [
+                    "title": AnyEncodable(item.title),
+                    "category": AnyEncodable(item.category),
+                    "createdDate": AnyEncodable(ISO8601DateFormatter().string(from: item.createdDate)),
+                    "content": AnyEncodable(body)
+                ]
+            }
+            if let data = try? encoder.encode(payload), let jsonString = String(data: data, encoding: .utf8) {
+                sparkContent = jsonString
+            } else {
+                sparkContent = "[]"
+            }
+        } else {
+            let combined = selected.map { $0.content }.joined(separator: "\n\n")
+            sparkContent = combined
+        }
     }
     
     // Manual directory scanning removed; SparkLoader observes changes and sorts by creation date

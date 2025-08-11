@@ -17,6 +17,10 @@ struct OptionsSheetView: View {
     let onDone: () -> Void
     let onTestGenerateAndNotify: () -> Void
     let promptText: String
+    // New: spark items and selection binding
+    var sparkItems: [SparkItem] = []
+    @Binding var selectedSparkURLs: Set<URL>
+    @Binding var formatAsJSON: Bool
 
     @State private var showFullPrompt: Bool = false
 
@@ -32,13 +36,70 @@ struct OptionsSheetView: View {
                     .buttonStyle(.borderedProminent)
             }
 
-            // Content field
+            // Spark list and content preview
             VStack(alignment: .leading, spacing: 8) {
                 Text("Sparks")
                     .font(.headline)
 
+                if !sparkItems.isEmpty {
+                    HStack(spacing: 8) {
+                        Button("Select All") {
+                            selectedSparkURLs = Set(sparkItems.map { $0.id })
+                        }
+                        Button("Select None") {
+                            selectedSparkURLs.removeAll()
+                        }
+                        Spacer()
+                        Text("Selected: \(selectedSparkURLs.count)/\(sparkItems.count)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    List(sparkItems) { item in
+                        HStack(alignment: .top, spacing: 8) {
+                            Toggle("", isOn: Binding(
+                                get: { selectedSparkURLs.contains(item.id) },
+                                set: { isOn in
+                                    if isOn { selectedSparkURLs.insert(item.id) } else { selectedSparkURLs.remove(item.id) }
+                                }
+                            ))
+                            .toggleStyle(.checkbox)
+                            .labelsHidden()
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title.isEmpty ? item.id.lastPathComponent : item.title)
+                                    .font(.headline)
+                                HStack(spacing: 8) {
+                                    Text(item.category)
+                                    Text(item.createdDate, style: .date)
+                                    Text("~\(item.tokenEstimate) tok")
+                                }
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                    .frame(minHeight: 160, maxHeight: 240)
+                } else {
+                    Text("No sparks found.")
+                        .foregroundColor(.secondary)
+                }
+
+                HStack {
+                HStack {
+                    Text("Included Spark Content")
+                    Spacer()
+                    Toggle("Format as JSON", isOn: $formatAsJSON)
+                        .toggleStyle(.switch)
+                }
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Text("≈ \(estimateTokenCount(for: sparkContent)) tokens")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
                 TextEditor(text: $sparkContent)
-                    .frame(minHeight: 150)
+                    .frame(minHeight: 120)
                     .padding(8)
                     .background(Color(.textBackgroundColor))
                     .cornerRadius(8)
@@ -135,7 +196,13 @@ struct OptionsSheetView: View {
         currentResponseText: "Here is a preview response.",
         onDone: {},
         onTestGenerateAndNotify: {},
-        promptText: "Create a short summary of the following content "
+        promptText: "Create a short summary of the following content ",
+        sparkItems: [
+            SparkItem(id: URL(fileURLWithPath: "/tmp/a.md"), title: "A title", category: "text", createdDate: Date(), tokenEstimate: 120, content: "---\ntitle: A title\n---\nBody"),
+            SparkItem(id: URL(fileURLWithPath: "/tmp/b.md"), title: "B title", category: "website", createdDate: Date(), tokenEstimate: 95, content: "---\ntitle: B title\n---\nBody")
+        ],
+        selectedSparkURLs: .constant([]),
+        formatAsJSON: .constant(false)
     )
     .frame(width: 420, height: 500)
 }

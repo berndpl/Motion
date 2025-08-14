@@ -17,172 +17,214 @@ struct OptionsSheetView: View {
     let onDone: () -> Void
     let onTestGenerateAndNotify: () -> Void
     let promptText: String
-    // New: spark items and selection binding
+    // Data
     var sparkItems: [SparkItem] = []
     @Binding var selectedSparkURLs: Set<URL>
     @Binding var formatAsJSON: Bool
+    // Prompt options
+    @Binding var instructionText: String
+    @Binding var contextText: String
+    let compiledPromptText: String
+    var compiledPromptBinding: Binding<String>? = nil
+    var onShowFullPromptInWindow: (() -> Void)? = nil
 
-    @State private var showFullPrompt: Bool = false
+    // Removed in favor of separate window
+    @State private var showInstructionSection: Bool = true
+    @State private var showContextSection: Bool = true
+    @State private var showDataSection: Bool = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            // Header
-            HStack {
-                Text("Options")
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                Spacer()
-                Button("Done") { onDone() }
-                    .buttonStyle(.borderedProminent)
-            }
-
-            // Spark list and content preview
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Sparks")
-                    .font(.headline)
-
-                if !sparkItems.isEmpty {
-                    HStack(spacing: 8) {
-                        Button("Select All") {
-                            selectedSparkURLs = Set(sparkItems.map { $0.id })
-                        }
-                        Button("Select None") {
-                            selectedSparkURLs.removeAll()
-                        }
-                        Spacer()
-                        Text("Selected: \(selectedSparkURLs.count)/\(sparkItems.count)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    List(sparkItems) { item in
-                        HStack(alignment: .top, spacing: 8) {
-                            Toggle("", isOn: Binding(
-                                get: { selectedSparkURLs.contains(item.id) },
-                                set: { isOn in
-                                    if isOn { selectedSparkURLs.insert(item.id) } else { selectedSparkURLs.remove(item.id) }
-                                }
-                            ))
-                            .toggleStyle(.checkbox)
-                            .labelsHidden()
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.title.isEmpty ? item.id.lastPathComponent : item.title)
-                                    .font(.headline)
-                                HStack(spacing: 8) {
-                                    Text(item.category)
-                                    Text(item.createdDate, style: .date)
-                                    Text("~\(item.tokenEstimate) tok")
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
-                            Spacer(minLength: 0)
-                        }
-                    }
-                    .frame(minHeight: 160, maxHeight: 240)
-                } else {
-                    Text("No sparks found.")
-                        .foregroundColor(.secondary)
-                }
-
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
                 HStack {
-                HStack {
-                    Text("Included Spark Content")
+                    Text("Options").font(.title2).fontWeight(.semibold)
                     Spacer()
-                    Toggle("Format as JSON", isOn: $formatAsJSON)
-                        .toggleStyle(.switch)
-                }
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                    Text("≈ \(estimateTokenCount(for: sparkContent)) tokens")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                TextEditor(text: $sparkContent)
-                    .frame(minHeight: 120)
-                    .padding(8)
-                    .background(Color(.textBackgroundColor))
-                    .cornerRadius(8)
-                    .scrollIndicators(.automatic)
-
-                HStack {
-                    Button("Show Full Prompt") { showFullPrompt = true }
-                        .buttonStyle(.borderedProminent)
-                    Spacer()
-                }
-            }
-            // File count display
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "doc.on.doc")
-                        .foregroundColor(.blue)
-                    Text("\(fileCount) files loaded")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    Spacer()
-                }
-            }
-
-            // Ollama server info
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Ollama Server Info")
-                    .font(.headline)
-
-                TextField("Ollama URL", text: $ollamaURL)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .disableAutocorrection(true)
-
-                TextField("Model Name", text: $modelName)
-                    .textFieldStyle(RoundedBorderTextFieldStyle())
-                    .disableAutocorrection(true)
-            }
-
-            // Notifications
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Notifications")
-                    .font(.headline)
-                Toggle("Hourly notification with latest response", isOn: $notificationsEnabled)
-                HStack(spacing: 12) {
-                    Button("Send Test Notification") {
-                        onTestGenerateAndNotify()
-                    }
-                }
-            }
-        }
-        .padding()
-        .sheet(isPresented: $showFullPrompt) {
-            let fullPrompt = promptText + sparkContent
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text("Full Prompt")
-                        .font(.title3)
-                        .fontWeight(.semibold)
-                    Spacer()
-                    Button("Done") { showFullPrompt = false }
+                    #if os(macOS)
+                    Button("Open Window") { onShowFullPromptInWindow?() }
+                        .buttonStyle(.bordered)
+                    #endif
+                    Button("Done") { onDone() }
                         .buttonStyle(.borderedProminent)
                 }
-                Text("Estimated tokens: \(estimateTokenCount(for: fullPrompt))")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-                ScrollView {
-                    Text(fullPrompt)
-                        .textSelection(.enabled)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                // Instruction
+                DisclosureGroup(isExpanded: $showInstructionSection) {
+                    TextEditor(text: $instructionText)
+                        .frame(minHeight: 80, maxHeight: 120)
                         .padding(8)
                         .background(Color(.textBackgroundColor))
-                        .cornerRadius(6)
+                        .cornerRadius(8)
+                } label: {
+                    Text("Instruction").font(.headline)
                 }
-                Spacer(minLength: 0)
+
+                // Context
+                DisclosureGroup(isExpanded: $showContextSection) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        TextEditor(text: $contextText)
+                            .frame(minHeight: 80, maxHeight: 120)
+                            .padding(8)
+                            .background(Color(.textBackgroundColor))
+                            .cornerRadius(8)
+                        // Variable help
+                        HStack(spacing: 12) {
+                            Group {
+                                Text("Available: ")
+                                    .foregroundColor(.secondary)
+                                Text("{{ date }}")
+                                    .font(.caption)
+                                    .padding(4)
+                                    .background(Color(.textBackgroundColor))
+                                    .cornerRadius(4)
+                                Text("{{ time }}")
+                                    .font(.caption)
+                                    .padding(4)
+                                    .background(Color(.textBackgroundColor))
+                                    .cornerRadius(4)
+                                Text("{{ day }}")
+                                    .font(.caption)
+                                    .padding(4)
+                                    .background(Color(.textBackgroundColor))
+                                    .cornerRadius(4)
+                            }
+                            Spacer()
+                        }
+                        HStack(spacing: 12) {
+                            let region = Locale.current.region?.identifier ?? ""
+                            Text("Right now it's \(Self.localTimeString())")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if !region.isEmpty {
+                                Text("Region: \(region)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                        }
+                    }
+                } label: {
+                    Text("Context").font(.headline)
+                }
+
+                // Data (Sparks)
+                DisclosureGroup(isExpanded: $showDataSection) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !sparkItems.isEmpty {
+                            HStack(spacing: 8) {
+                                Button("Select All") { selectedSparkURLs = Set(sparkItems.map { $0.id }) }
+                                Button("Select None") { selectedSparkURLs.removeAll() }
+                                Spacer()
+                                Text("Selected: \(selectedSparkURLs.count)/\(sparkItems.count)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            List(sparkItems) { item in
+                                HStack(alignment: .top, spacing: 8) {
+                                    Toggle("", isOn: Binding(
+                                        get: { selectedSparkURLs.contains(item.id) },
+                                        set: { isOn in
+                                            if isOn { selectedSparkURLs.insert(item.id) } else { selectedSparkURLs.remove(item.id) }
+                                        }
+                                    ))
+                                    .toggleStyle(.checkbox)
+                                    .labelsHidden()
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.title.isEmpty ? item.id.lastPathComponent : item.title)
+                                            .font(.headline)
+                                        HStack(spacing: 8) {
+                                            Text(item.category)
+                                            Text(item.createdDate, style: .date)
+                                            Text("~\(item.tokenEstimate) tok")
+                                        }
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                            }
+                            .frame(minHeight: 120, maxHeight: 240)
+                        } else {
+                            Text("No sparks found.").foregroundColor(.secondary)
+                        }
+
+                        HStack {
+                            Text("Included Spark Content")
+                            Spacer()
+                            Toggle("Format as JSON", isOn: $formatAsJSON).toggleStyle(.switch)
+                        }
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+
+                        HStack {
+                            Text("≈ \(estimateTokenCount(for: sparkContent)) tokens").font(.caption).foregroundColor(.secondary)
+                            Spacer()
+                        }
+
+                        TextEditor(text: $sparkContent)
+                            .frame(minHeight: 100, maxHeight: 180)
+                            .padding(8)
+                            .background(Color(.textBackgroundColor))
+                            .cornerRadius(8)
+                            .scrollIndicators(.automatic)
+
+                        // Controls moved to top header
+                    }
+                } label: {
+                    Text("Data (Sparks)").font(.headline)
+                }
+
+                // File count
+                HStack {
+                    Image(systemName: "doc.on.doc").foregroundColor(.blue)
+                    Text("\(fileCount) files loaded").font(.subheadline).foregroundColor(.secondary)
+                    Spacer()
+                }
+
+                // Preview
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Preview").font(.headline)
+                    if let binding = compiledPromptBinding {
+                        TextEditor(text: binding)
+                            .frame(minHeight: 120, maxHeight: 200)
+                            .padding(8)
+                            .background(Color(.textBackgroundColor))
+                            .cornerRadius(8)
+                            .scrollIndicators(.automatic)
+                    } else {
+                        TextEditor(text: .constant(compiledPromptText))
+                            .frame(minHeight: 120, maxHeight: 200)
+                            .padding(8)
+                            .background(Color(.textBackgroundColor))
+                            .cornerRadius(8)
+                            .scrollIndicators(.automatic)
+                    }
+                }
+
+                // More Options
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("More Options").font(.headline)
+                    TextField("Ollama URL", text: $ollamaURL).textFieldStyle(.roundedBorder).disableAutocorrection(true)
+                    TextField("Model Name", text: $modelName).textFieldStyle(.roundedBorder).disableAutocorrection(true)
+                    Toggle("Hourly notification with latest response", isOn: $notificationsEnabled)
+                    HStack { Button("Send Test Notification") { onTestGenerateAndNotify() }; Spacer() }
+                }
             }
             .padding()
-            .frame(minWidth: 500, minHeight: 400)
         }
+        // Full prompt is shown in a separate window on macOS
     }
 
     private func estimateTokenCount(for text: String) -> Int {
         let characterCount = text.unicodeScalars.count
         return max(1, Int(ceil(Double(characterCount) / 4.0)))
+    }
+
+    private static func localTimeString() -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .long
+        formatter.timeStyle = .medium
+        return formatter.string(from: Date())
     }
 }
 
@@ -202,7 +244,10 @@ struct OptionsSheetView: View {
             SparkItem(id: URL(fileURLWithPath: "/tmp/b.md"), title: "B title", category: "website", createdDate: Date(), tokenEstimate: 95, content: "---\ntitle: B title\n---\nBody")
         ],
         selectedSparkURLs: .constant([]),
-        formatAsJSON: .constant(false)
+        formatAsJSON: .constant(false),
+        instructionText: .constant(""),
+        contextText: .constant(""),
+        compiledPromptText: "Instruction: ...\n\nContext: ...\n\nData: ..."
     )
     .frame(width: 420, height: 500)
 }

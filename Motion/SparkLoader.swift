@@ -189,10 +189,11 @@ final class SparkLoader: ObservableObject {
                 contentBuilder.append("\n\n")
             }
             let finalContent = contentBuilder
+            let finalItems = builtItems
             await MainActor.run {
                 self.combinedContent = finalContent
-                self.fileCount = builtItems.count
-                self.items = builtItems
+                self.fileCount = finalItems.count
+                self.items = finalItems
             }
         }
     }
@@ -247,5 +248,26 @@ extension SparkLoader {
         // Trim leading blank lines
         while lines.first?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true { _ = lines.removeFirst() }
         return lines.joined(separator: "\n")
+    }
+
+    nonisolated static func extractTags(from content: String) -> [String] {
+        let lines = content.components(separatedBy: .newlines)
+        var inFrontmatter = false
+        for line in lines {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed == "---" {
+                if inFrontmatter { break }
+                inFrontmatter = true
+                continue
+            }
+            if inFrontmatter && trimmed.hasPrefix("tags: ") {
+                let tagsString = String(trimmed.dropFirst(6))
+                return tagsString
+                    .split(separator: ",")
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            }
+        }
+        return []
     }
 }

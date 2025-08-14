@@ -80,6 +80,41 @@ Animation
 1. Prompt textfield
 2. Generate Button, native macOS button
 
+Options button to show how the prompt is compiled
+
+### Prompt
+
+Instruction
+- A text field with general instructions
+
+Context
+- A text field showing prepopulated with dynanic local and personal information
+- Local time
+- Region
+
+- Allow inserting content in the textview by liquid style variables
+- {{ date }} should insert the current date, e.g. August 3, 2034
+- {{ time }} time of day, e.g. 16:39
+- {{ day }} current day, e.g. Thursday
+
+Data (Sparks)
+- Show list of sparks (title, create date, category, estimated use of tokens)
+- Allow select/deselect individual sparks to be included in the prompt 
+- Allow to select all / none
+- Show total tokens used
+- Show number of sparks loaded
+- Toggle to add data as JSON format
+
+Preview
+- Textfield with compiled prompt to be submitted when tapping generate
+
+More options
+- Server info
+- Notifications toggle
+
+
+
+
 ##States
 
 ### Initial
